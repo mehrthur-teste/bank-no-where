@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "es2022"
+    ],
+    "declaration": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": false,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "experimentalDecorators": true,
+    "strictPropertyInitialization": false,
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "baseUrl": "./",
+    "paths": {
+      "/opt/nodejs/objectLayer":[
+        "lambda/objects/layers/objectLayer/nodejs/objectRepository",
+        "lambda/objects/layers/objectLayer/nodejs/objectHashChat",
+        "lambda/objects/layers/objectLayer/nodejs/objectHashToken",
+        "lambda/objects/layers/objectLayer/nodejs/objectQueries",
+        "lambda/objects/layers/objectLayer/nodejs/objectTunelTransactions"
+      ]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "cdk.out"
+  ]
+}
