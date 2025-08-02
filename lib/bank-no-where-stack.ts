@@ -3,6 +3,14 @@ import { Construct } from 'constructs';
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs"
 import  * as apigateway from "aws-cdk-lib/aws-apigateway"
 import * as cwlogs from "aws-cdk-lib/aws-logs"
+import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
+import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
+
+
+
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 interface ApiStackProps extends cdk.StackProps{
@@ -45,6 +53,150 @@ export class BankNoWhereStack extends cdk.Stack {
             }
         })
         const tunelApiFetchIntegration = new  apigateway.LambdaIntegration(props.tunelHandler)
+        const tunelResource = api.root.addResource("tunel")
+
+        // Push tunell transactions
+        const tunelLoginResource = tunelResource
+                                               .addResource("push")
+                                               .addResource("{login}")
+                                               .addResource("password")
+                                               .addResource("{password}");
+
+        tunelLoginResource.addMethod("POST", tunelApiFetchIntegration)
+
+    // Define the second api Gateway for using with the hash
+    const QueriesWebSocketApi = new apigatewayv2.WebSocketApi(this, "QueriesWebSocket", {
+      connectRouteOptions: {
+        integration: new integrations.WebSocketLambdaIntegration(
+          "ConnectIntegration",
+          props.queriesHandler
+        ),
+      },
+      disconnectRouteOptions: {
+        integration: new integrations.WebSocketLambdaIntegration(
+          "DisconnectIntegration",
+          props.queriesHandler
+        ),
+      },
+    });
+
+    // Rota customizada para mensagens
+    QueriesWebSocketApi.addRoute("sendMessage", {
+      integration: new integrations.WebSocketLambdaIntegration(
+        "SendMessageIntegration",
+        props.queriesHandler
+      ),
+    });
+
+    // Estágio do WebSocket
+     new apigatewayv2.WebSocketStage(this, "QueriesWebSocketProd", {
+      webSocketApi: QueriesWebSocketApi,
+      stageName: "prod",
+      autoDeploy: true,
+    });
+
+
+     // Define the second api Gateway for using with the hash
+    const HashWebSocketApi = new apigatewayv2.WebSocketApi(this, "HashWebSocketApi", {
+      connectRouteOptions: {
+        integration: new integrations.WebSocketLambdaIntegration(
+          "ConnectIntegration",
+          props.queriesHandler
+        ),
+      },
+      disconnectRouteOptions: {
+        integration: new integrations.WebSocketLambdaIntegration(
+          "DisconnectIntegration",
+          props.queriesHandler
+        ),
+      },
+    });
+
+    // Rota customizada para mensagens
+    HashWebSocketApi.addRoute("sendMessage", {
+      integration: new integrations.WebSocketLambdaIntegration(
+        "SendMessageIntegration",
+        props.queriesHandler
+      ),
+    });
+
+    // Estágio do WebSocket
+    new apigatewayv2.WebSocketStage(this, "HashWebSocketApiProd", {
+      webSocketApi: HashWebSocketApi,
+      stageName: "prod",
+      autoDeploy: true,
+    });
+
+    // Define the custom domain for the WebSocket API
+    const zone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+      domainName: 'minhadomain.com',
+    });
+
+    const apiCert = certificatemanager.Certificate.fromCertificateArn(this, 'ApiCert', 'arn:aws:acm:region:account:certificate/api-cert-arn');
+    const queriesWsCert = certificatemanager.Certificate.fromCertificateArn(this, 'QueriesWsCert', 'arn:aws:acm:region:account:certificate/queries-ws-cert-arn');
+    const hashWsCert = certificatemanager.Certificate.fromCertificateArn(this, 'HashWsCert', 'arn:aws:acm:region:account:certificate/hash-ws-cert-arn');
+
+    const apiDomain = new apigateway.DomainName(this, 'ApiDomain', {
+    domainName: 'api.minhadomain.com',
+    certificate: apiCert,
+    });
+
+    new apigateway.BasePathMapping(this, 'ApiBasePathMapping', {
+      domainName: apiDomain,
+      restApi: api,
+      stage: api.deploymentStage,
+    });
+
+    new route53.ARecord(this, 'ApiAliasRecord', {
+      zone,
+      recordName: 'api.minhadomain.com',
+      target: route53.RecordTarget.fromAlias(new targets.ApiGatewayDomain(apiDomain)),
+    });
+
+
+    const queriesWsDomain = new apigatewayv2.DomainName(this, 'QueriesWsDomain', {
+      domainName: 'queries.minhadomain.com',
+      certificate: queriesWsCert,
+    });
+
+  const queriesWsStage = QueriesWebSocketApi.defaultStage!; // ou sua referência explícita
+
+  new apigatewayv2.ApiMapping(this, 'QueriesWsApiMapping', {
+    domainName: queriesWsDomain,
+    api: QueriesWebSocketApi,
+    stage: queriesWsStage,
+  });
+
+  new route53.ARecord(this, 'QueriesWsAliasRecord', {
+    zone,
+    recordName: 'queries.minhadomain.com',
+    target: route53.RecordTarget.fromAlias(new targets.ApiGatewayDomain(queriesWsDomain)),
+  });
+
+
+  const hashWsDomain = new apigatewayv2.DomainName(this, 'HashWsDomain', {
+    domainName: 'hash.minhadomain.com',
+    certificate: hashWsCert,
+  });
+
+  const hashWsStage = HashWebSocketApi.defaultStage!; // ou sua referência explícita
+
+  new apigatewayv2.ApiMapping(this, 'HashWsApiMapping', {
+    domainName: hashWsDomain,
+    api: HashWebSocketApi,
+    stage: hashWsStage,
+  });
+
+  new route53.ARecord(this, 'HashWsAliasRecord', {
+    zone,
+    recordName: 'hash.minhadomain.com',
+    target: route53.RecordTarget.fromAlias(new targets.ApiGatewayDomain(hashWsDomain)),
+  });
+
+
+
+    
+
 
     // The code that defines your stack goes here
     // lambda/products/layers/productsLayer/nodejs/productsRepository
