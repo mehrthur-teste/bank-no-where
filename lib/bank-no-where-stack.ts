@@ -64,7 +64,7 @@ export class BankNoWhereStack extends cdk.Stack {
 
         tunelLoginResource.addMethod("POST", tunelApiFetchIntegration)
 
-    // Define the second api Gateway for using with the hash
+    // Define the api Gateway web socket for using with the hash
     const QueriesWebSocketApi = new apigatewayv2.WebSocketApi(this, "QueriesWebSocket", {
       connectRouteOptions: {
         integration: new integrations.WebSocketLambdaIntegration(
@@ -96,7 +96,7 @@ export class BankNoWhereStack extends cdk.Stack {
     });
 
 
-     // Define the second api Gateway for using with the hash
+     // Define the api websocket for using with the hash
     const HashWebSocketApi = new apigatewayv2.WebSocketApi(this, "HashWebSocketApi", {
       connectRouteOptions: {
         integration: new integrations.WebSocketLambdaIntegration(
@@ -129,15 +129,16 @@ export class BankNoWhereStack extends cdk.Stack {
 
     // Define the custom domain for the WebSocket API
     const zone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: 'minhadomain.com',
+      domainName: 'smarters.ai',
     });
 
     const apiCert = certificatemanager.Certificate.fromCertificateArn(this, 'ApiCert', 'arn:aws:acm:region:account:certificate/api-cert-arn');
     const queriesWsCert = certificatemanager.Certificate.fromCertificateArn(this, 'QueriesWsCert', 'arn:aws:acm:region:account:certificate/queries-ws-cert-arn');
     const hashWsCert = certificatemanager.Certificate.fromCertificateArn(this, 'HashWsCert', 'arn:aws:acm:region:account:certificate/hash-ws-cert-arn');
 
+    // api gateway domain
     const apiDomain = new apigateway.DomainName(this, 'ApiDomain', {
-    domainName: 'api.minhadomain.com',
+    domainName: `${myVar}.smarters.ai`,
     certificate: apiCert,
     });
 
@@ -149,17 +150,21 @@ export class BankNoWhereStack extends cdk.Stack {
 
     new route53.ARecord(this, 'ApiAliasRecord', {
       zone,
-      recordName: 'api.minhadomain.com',
+      recordName: `${myVar}.smarters.ai`,
       target: route53.RecordTarget.fromAlias(new targets.ApiGatewayDomain(apiDomain)),
     });
 
-
+    // api websocket domain
     const queriesWsDomain = new apigatewayv2.DomainName(this, 'QueriesWsDomain', {
-      domainName: 'queries.minhadomain.com',
+      domainName: `wsq-${myVar}.smarters.ai`,
       certificate: queriesWsCert,
     });
 
-  const queriesWsStage = QueriesWebSocketApi.defaultStage!; // ou sua referência explícita
+  const queriesWsStage = new apigatewayv2.WebSocketStage(this, "QueriesWebSocketProd", {
+    webSocketApi: QueriesWebSocketApi,
+    stageName: "prod",
+    autoDeploy: true,
+  });
 
   new apigatewayv2.ApiMapping(this, 'QueriesWsApiMapping', {
     domainName: queriesWsDomain,
@@ -169,17 +174,26 @@ export class BankNoWhereStack extends cdk.Stack {
 
   new route53.ARecord(this, 'QueriesWsAliasRecord', {
     zone,
-    recordName: 'queries.minhadomain.com',
-    target: route53.RecordTarget.fromAlias(new targets.ApiGatewayDomain(queriesWsDomain)),
+    recordName: `wsq-${myVar}`,
+    target: route53.RecordTarget.fromAlias(
+    new targets.ApiGatewayv2DomainProperties(
+      queriesWsDomain.regionalDomainName,
+      queriesWsDomain.regionalHostedZoneId
+    )
+  ),
   });
 
-
+  // other api websocket domain
   const hashWsDomain = new apigatewayv2.DomainName(this, 'HashWsDomain', {
-    domainName: 'hash.minhadomain.com',
+    domainName: `wsh-${myVar}.smarters.ai`,
     certificate: hashWsCert,
   });
 
-  const hashWsStage = HashWebSocketApi.defaultStage!; // ou sua referência explícita
+  const hashWsStage = new apigatewayv2.WebSocketStage(this, "QueriesWebSocketProd", {
+    webSocketApi: HashWebSocketApi,
+    stageName: "prod",
+    autoDeploy: true,
+  });
 
   new apigatewayv2.ApiMapping(this, 'HashWsApiMapping', {
     domainName: hashWsDomain,
@@ -189,8 +203,13 @@ export class BankNoWhereStack extends cdk.Stack {
 
   new route53.ARecord(this, 'HashWsAliasRecord', {
     zone,
-    recordName: 'hash.minhadomain.com',
-    target: route53.RecordTarget.fromAlias(new targets.ApiGatewayDomain(hashWsDomain)),
+    recordName: `wsh-${myVar}`,
+    target: route53.RecordTarget.fromAlias(
+    new targets.ApiGatewayv2DomainProperties(
+      hashWsDomain.regionalDomainName,
+      hashWsDomain.regionalHostedZoneId
+    )
+  ),
   });
 
 
