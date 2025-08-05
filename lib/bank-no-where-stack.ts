@@ -129,7 +129,7 @@ export class BankNoWhereStack extends cdk.Stack {
 
     // Define the custom domain for the WebSocket API
     const zone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: 'smarters.ai',
+      domainName: 'xxxxx.ai',
     });
 
     const apiCert = certificatemanager.Certificate.fromCertificateArn(this, 'ApiCert', 'arn:aws:acm:region:account:certificate/api-cert-arn');
@@ -138,7 +138,7 @@ export class BankNoWhereStack extends cdk.Stack {
 
     // api gateway domain
     const apiDomain = new apigateway.DomainName(this, 'ApiDomain', {
-    domainName: `${myVar}.smarters.ai`,
+    domainName: `${myVar}.xxxxxx.ai`,
     certificate: apiCert,
     });
 
@@ -150,13 +150,13 @@ export class BankNoWhereStack extends cdk.Stack {
 
     new route53.ARecord(this, 'ApiAliasRecord', {
       zone,
-      recordName: `${myVar}.smarters.ai`,
+      recordName: `${myVar}.xxxxx.ai`,
       target: route53.RecordTarget.fromAlias(new targets.ApiGatewayDomain(apiDomain)),
     });
 
     // api websocket domain
     const queriesWsDomain = new apigatewayv2.DomainName(this, 'QueriesWsDomain', {
-      domainName: `wsq-${myVar}.smarters.ai`,
+      domainName: `wsq-${myVar}.xxxx.ai`,
       certificate: queriesWsCert,
     });
 
@@ -185,7 +185,7 @@ export class BankNoWhereStack extends cdk.Stack {
 
   // other api websocket domain
   const hashWsDomain = new apigatewayv2.DomainName(this, 'HashWsDomain', {
-    domainName: `wsh-${myVar}.smarters.ai`,
+    domainName: `wsh-${myVar}.xxxxx.ai`,
     certificate: hashWsCert,
   });
 
