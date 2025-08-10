@@ -8,6 +8,7 @@ import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 
 
 
@@ -17,6 +18,8 @@ interface ApiStackProps extends cdk.StackProps{
     hashHandler: lambdaNodejs.NodejsFunction
     queriesHandler: lambdaNodejs.NodejsFunction
     tunelHandler: lambdaNodejs.NodejsFunction
+    db: dynamodb.Table
+    
 }
 
 export class BankNoWhereStack extends cdk.Stack {
@@ -30,6 +33,32 @@ export class BankNoWhereStack extends cdk.Stack {
       logGroupName: logGroupName,
       retention: cwlogs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // dynamodb tem q ter 6 tabelas
+    props.db = new dynamodb.Table(this, "MetadataDb", {
+            tableName: "Metadata",
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            partitionKey: {
+                name: "id",
+                type: dynamodb.AttributeType.STRING
+            },
+            sortKey: {
+                name: "name",
+                type: dynamodb.AttributeType.STRING
+            },
+            deletionProtection: true,
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    })
+
+    // Adicionando um GSI para o campo 'name'
+    props.db.addGlobalSecondaryIndex({
+            indexName: "NameIndex",
+            partitionKey: {
+                name: "name",
+                type: dynamodb.AttributeType.STRING
+            },
+            projectionType: dynamodb.ProjectionType.ALL
     });
 
     // Define the first api Gateway for using with the queries
